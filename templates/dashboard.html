@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - API Security Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+.dashboard-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 1rem;
+    padding: 2.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dashboard-header h1 {
+    font-weight: 700;
+    font-size: 1.75rem;
+    background: linear-gradient(135deg, #4F46E5, #3B82F6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-header p {
+    color: #6B7280;
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.section-title {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #1F2937;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-title i {
+    color: #4F46E5;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1>
+                <i class="fas fa-shield-alt"></i> API Security Platform
+            </h1>
+            <p>Real-time monitoring, analysis, and security insights for your API infrastructure</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button class="btn btn-info">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Key Metrics Overview -->
+<div class="row mb-4" id="overviewCards">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-2">Total APIs</h6>
+                        <h2 class="mb-1" id="totalApis">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </h2>
+                        <small class="opacity-90">Registered Services</small>
+                    </div>
+                    <div>
+                        <i class="fas fa-server fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-2">Secured APIs</h6>
+                        <h2 class="mb-1" id="withSecurity">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </h2>
+                        <small id="securityPercent" class="opacity-90">-</small>
+                    </div>
+                    <div>
+                        <i class="fas fa-shield-alt fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-2">Rate Limited</h6>
+                        <h2 class="mb-1" id="withThrottling">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </h2>
+                        <small id="throttlingPercent" class="opacity-90">-</small>
+                    </div>
+                    <div>
+                        <i class="fas fa-tachometer-alt fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-2">Authenticated</h6>
+                        <h2 class="mb-1" id="withAuth">
+                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                        </h2>
+                        <small id="authPercent" class="opacity-90">-</small>
+                    </div>
+                    <div>
+                        <i class="fas fa-key fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Inventory Table -->
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="section-title">
+            <i class="fas fa-list-ul"></i> API Inventory
+        </h2>
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="mb-0">
+                            <i class="fas fa-database"></i> All Registered APIs
+                        </h5>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-file-excel"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="apiScoresTable">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-tag"></i> API Name</th>
+                                <th><i class="fas fa-cloud"></i> Environments</th>
+                                <th><i class="fas fa-shield-alt"></i> Policies</th>
+                                <th><i class="fas fa-calendar"></i> Created Date</th>
+                                <th><i class="fas fa-cog"></i> Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="apiScoresBody">
+                            <tr>
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-3 text-muted">Loading API inventory...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Set default dates (last 7 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    
+    $('#startDate').val(startDate.toISOString().split('T')[0]);
+    $('#endDate').val(endDate.toISOString().split('T')[0]);
+    
+    // Load initial data
+    loadOverview();
+    loadAPIScores();
+    
+    // Form submit handler
+    $('#dateRangeForm').on('submit', function(e) {
+        e.preventDefault();
+        loadAPIScores();
+    });
+});
+
+function loadOverview() {
+    $.get('/api/overview', function(response) {
+        if (response.success) {
+            const data = response.data;
+
+            $('#totalApis').text(data.total_apis);
+            $('#withSecurity').text(data.with_security);
+            $('#securityPercent').text(Math.round(data.security_percentage) + '%');
+            $('#withThrottling').text(data.with_throttling);
+            $('#throttlingPercent').text(Math.round(data.throttling_percentage) + '%');
+            $('#withAuth').text(data.with_auth);
+            $('#authPercent').text(Math.round(data.auth_percentage) + '%');
+        }
+    });
+}
+
+let apiScoresTable = null;
+
+function loadAPIScores() {
+    // Destroy existing DataTable if exists
+    if ($.fn.DataTable.isDataTable('#apiScoresTable')) {
+        $('#apiScoresTable').DataTable().clear().destroy();
+    }
+
+    $('#apiScoresBody').html('<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary"></div></td></tr>');
+
+    // Get API list from MongoDB only (no ES queries - fast!)
+    $.get('/api/apis', function(response) {
+        if (response.success) {
+            const apis = response.data; // All APIs from MongoDB
+            const tableData = [];
+
+            apis.forEach(api => {
+                const envNames = api.deployed_environments.map(e => e.name).join(', ') || 'Not Deployed';
+                const policyCount = api.request_policies + api.response_policies;
+
+                tableData.push([
+                    `<strong>${api.service_name}</strong>`,
+                    envNames,
+                    `<span class="badge bg-secondary">${policyCount} policies</span>`,
+                    api.created_date || 'N/A',
+                    `<button class="btn btn-sm btn-primary" onclick="viewDetails('${api.id}')">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>`
+                ]);
+            });
+
+            // Clear loading spinner
+            $('#apiScoresBody').html('');
+
+            // Initialize DataTable
+            apiScoresTable = $('#apiScoresTable').DataTable({
+                data: tableData,
+                columns: [
+                    { title: 'API Name' },
+                    { title: 'Environments' },
+                    { title: 'Policies' },
+                    { title: 'Created Date' },
+                    { title: 'Actions', orderable: false }
+                ],
+                order: [[0, 'asc']], // Sort by name
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+                language: {
+                    search: 'Search APIs:',
+                    lengthMenu: 'Show _MENU_ APIs per page',
+                    info: 'Showing _START_ to _END_ of _TOTAL_ APIs',
+                    infoEmpty: 'No APIs found',
+                    infoFiltered: '(filtered from _MAX_ total APIs)',
+                    zeroRecords: 'No matching APIs found'
+                },
+                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+                destroy: true // Allow reinitialization
+            });
+        }
+    });
+}
+
+function getScoreClass(score) {
+    if (score >= 90) return 'bg-success';
+    if (score >= 75) return 'bg-info';
+    if (score >= 60) return 'bg-warning';
+    return 'bg-danger';
+}
+
+function getLevelBadge(level) {
+    const badges = {
+        'Excellent': '<span class="badge bg-success">Excellent</span>',
+        'Good': '<span class="badge bg-info">Good</span>',
+        'Fair': '<span class="badge bg-warning">Fair</span>',
+        'Poor': '<span class="badge bg-danger">Poor</span>',
+        'Critical': '<span class="badge bg-dark">Critical</span>'
+    };
+    return badges[level] || level;
+}
+
+function viewDetails(apiId) {
+    window.location.href = `/api/${apiId}`;
+}
+
+// Initialize dashboard on page load
+$(document).ready(function() {
+    // Load initial data
+    loadOverview();
+    loadAPIScores();
+});
+</script>
+{% endblock %}
+

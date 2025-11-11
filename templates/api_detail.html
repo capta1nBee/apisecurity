@@ -1,0 +1,915 @@
+{% extends "base.html" %}
+
+{% block title %}API Details - {{ api_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.api-detail-hero {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 1rem;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.api-detail-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #4F46E5, #3B82F6, #10B981);
+}
+
+.api-detail-hero h1 {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: #1F2937;
+    margin-bottom: 0.65rem;
+}
+
+.api-detail-hero code {
+    background: rgba(79, 70, 229, 0.1);
+    color: #4F46E5;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Back Navigation -->
+<div class="row mb-3">
+    <div class="col-12">
+        <a href="/" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- API Detail Hero Section -->
+<div class="api-detail-hero">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1>
+                <i class="fas fa-cube text-gradient"></i> {{ api_name }}
+            </h1>
+            <p class="mb-2">
+                <strong>API ID:</strong> <code>{{ api_id }}</code>
+            </p>
+            <div id="securityLevelBadge"></div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="d-flex justify-content-end gap-2">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-download"></i> Export Report
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="exportReport('{{ api_id }}', 'pdf'); return false;">
+                            <i class="fas fa-file-pdf text-danger"></i> Export as PDF
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportReport('{{ api_id }}', 'excel'); return false;">
+                            <i class="fas fa-file-excel text-success"></i> Export as Excel
+                        </a></li>
+                    </ul>
+                </div>
+                <button class="btn btn-info btn-sm" onclick="shareReport('{{ api_id }}')">
+                    <i class="fas fa-share-alt"></i> Share
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Controls -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-sliders-h"></i> Analysis Parameters
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="dateRangeForm" class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label for="startDate" class="form-label fw-bold">
+                            <i class="fas fa-calendar-alt text-primary"></i> Start Date
+                        </label>
+                        <input type="date" class="form-control" id="startDate" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="endDate" class="form-label fw-bold">
+                            <i class="fas fa-calendar-check text-primary"></i> End Date
+                        </label>
+                        <input type="date" class="form-control" id="endDate" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    <input type="hidden" id="esSelect" value="PROD-ES">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Score Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Overall Security Score</h6>
+                <h1 class="display-3" id="overallScore">-</h1>
+                <div class="progress mt-3" style="height: 10px;">
+                    <div class="progress-bar" id="scoreProgress" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Score Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <div class="score-breakdown" id="scoreBreakdown">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Traffic Statistics -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Traffic Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="trafficStats">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Traffic Timeline Chart -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-area"></i> Traffic Timeline</h5>
+            </div>
+            <div class="card-body" style="height: 400px;">
+                <canvas id="trafficTimelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommendations -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Security Recommendations</h5>
+            </div>
+            <div class="card-body">
+                <div id="recommendations">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SSL & Security Status -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-lock"></i> SSL/TLS Status</h5>
+            </div>
+            <div class="card-body">
+                <div id="sslStatus">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-file-alt"></i> Logging Status</h5>
+            </div>
+            <div class="card-body">
+                <div id="loggingStatus">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hourly Traffic Heatmap -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-clock"></i> 24-Hour Traffic Distribution (PolicyAllowedHours Analysis)</h5>
+            </div>
+            <div class="card-body">
+                <div id="hourlyHeatmap">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Policy Configuration -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Policy Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div id="policyConfig">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Consumers -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Top IPs</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm" id="topIpsTable">
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Requests</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topIpsBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Status Code Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusCodeChart"></canvas>
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>HTTP Status Codes:</strong><br>
+                        <span class="badge bg-success me-1">2xx</span> Success (OK, Created, Accepted)<br>
+                        <span class="badge bg-info me-1">3xx</span> Redirection (Moved, Found, Not Modified)<br>
+                        <span class="badge bg-warning me-1">4xx</span> Client Error (Bad Request, Unauthorized, Not Found)<br>
+                        <span class="badge bg-danger me-1">5xx</span> Server Error (Internal Error, Bad Gateway, Service Unavailable)
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const API_ID = '{{ api_id }}';
+const API_NAME = '{{ api_name }}';
+
+$(document).ready(function() {
+    // Set default dates
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    
+    $('#startDate').val(startDate.toISOString().split('T')[0]);
+    $('#endDate').val(endDate.toISOString().split('T')[0]);
+    
+    // Load data
+    loadAPIDetails();
+    
+    // Form submit
+    $('#dateRangeForm').on('submit', function(e) {
+        e.preventDefault();
+        loadAPIDetails();
+    });
+});
+
+function loadAPIDetails() {
+    const startDate = $('#startDate').val();
+    const endDate = $('#endDate').val();
+    const esName = $('#esSelect').val();
+    
+    // Load score
+    $.get(`/api/apis/${API_ID}/score`, {
+        start_date: startDate + 'T00:00:00',
+        end_date: endDate + 'T23:59:59',
+        es_name: esName
+    }, function(response) {
+        if (response.success) {
+            displayAPIDetails(response.data);
+        }
+    });
+    
+    // Load timeline
+    $.get(`/api/traffic/timeline/${API_ID}`, {
+        start_date: startDate + 'T00:00:00',
+        end_date: endDate + 'T23:59:59',
+        es_name: esName,
+        interval: '1h'
+    }, function(response) {
+        if (response.success) {
+            displayTimeline(response.data.timeline);
+        }
+    });
+}
+
+function displayAPIDetails(data) {
+    const score = data.score;
+    const traffic = data.traffic_stats;
+
+    // Overall score
+    $('#overallScore').text(score.total_score.toFixed(1));
+    $('#scoreProgress').css('width', score.total_score + '%')
+        .removeClass('bg-success bg-info bg-warning bg-danger')
+        .addClass(getScoreClass(score.total_score));
+
+    $('#securityLevelBadge').html(getLevelBadge(score.security_level));
+
+    // Score breakdown
+    let breakdownHtml = '';
+    for (const [component, value] of Object.entries(score.component_scores)) {
+        const componentName = component.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        breakdownHtml += `
+            <div class="score-component">
+                <div class="component-name">${componentName}</div>
+                <div class="component-score" style="color: ${getScoreColor(value)}">${value.toFixed(1)}</div>
+                <div class="progress mt-2" style="height: 5px;">
+                    <div class="progress-bar" style="width: ${value}%; background-color: ${getScoreColor(value)}"></div>
+                </div>
+            </div>
+        `;
+    }
+    $('#scoreBreakdown').html(breakdownHtml);
+
+    // Traffic stats
+    displayTrafficStats(traffic);
+
+    // Recommendations
+    displayRecommendations(score.recommendations);
+
+    // SSL Status
+    displaySSLStatus(data);
+
+    // Logging Status
+    displayLoggingStatus(data);
+
+    // Hourly Heatmap
+    loadHourlyHeatmap();
+
+    // Policy Configuration - Show all policies without mapping
+    displayPolicyConfig(data.policies);
+
+    // Top IPs
+    displayTopIPs(traffic.top_ips || [], traffic.total_requests);
+
+    // Status codes
+    displayStatusCodes(traffic.status_codes || {});
+
+    // Sensitive Fields Check
+    loadSensitiveFieldsCheck();
+}
+
+function displayPolicyConfig(policies) {
+    if (!policies) {
+        $('#policyConfig').html('<p class="text-muted">No policy data available</p>');
+        return;
+    }
+
+    let html = '<div class="row">';
+
+    // Request Policies
+    html += `
+        <div class="col-md-4 mb-3">
+            <h6><i class="fas fa-arrow-right text-primary"></i> Request Policies (${policies.request ? policies.request.length : 0})</h6>
+            ${policies.request && policies.request.length > 0 ? `
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Policy Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${policies.request.map(p => `
+                            <tr>
+                                <td><code>${p.type}</code></td>
+                                <td>
+                                    <span class="badge ${p.enabled ? 'bg-success' : 'bg-secondary'}">
+                                        ${p.enabled ? '✓ Enabled' : '✗ Disabled'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            ` : '<p class="text-muted small">No request policies configured</p>'}
+        </div>
+    `;
+
+    // Response Policies
+    html += `
+        <div class="col-md-4 mb-3">
+            <h6><i class="fas fa-arrow-left text-success"></i> Response Policies (${policies.response ? policies.response.length : 0})</h6>
+            ${policies.response && policies.response.length > 0 ? `
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Policy Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${policies.response.map(p => `
+                            <tr>
+                                <td><code>${p.type}</code></td>
+                                <td>
+                                    <span class="badge ${p.enabled ? 'bg-success' : 'bg-secondary'}">
+                                        ${p.enabled ? '✓ Enabled' : '✗ Disabled'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            ` : '<p class="text-muted small">No response policies configured</p>'}
+        </div>
+    `;
+
+    // Error Policies
+    html += `
+        <div class="col-md-4 mb-3">
+            <h6><i class="fas fa-exclamation-triangle text-danger"></i> Error Policies (${policies.error ? policies.error.length : 0})</h6>
+            ${policies.error && policies.error.length > 0 ? `
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Policy Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${policies.error.map(p => `
+                            <tr>
+                                <td><code>${p.type}</code></td>
+                                <td>
+                                    <span class="badge ${p.enabled ? 'bg-success' : 'bg-secondary'}">
+                                        ${p.enabled ? '✓ Enabled' : '✗ Disabled'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            ` : '<p class="text-muted small">No error policies configured</p>'}
+        </div>
+    `;
+
+    html += '</div>';
+    $('#policyConfig').html(html);
+}
+
+function displayTrafficStats(traffic) {
+    const stats = [
+        { label: 'Total Requests', value: (traffic.total_requests || 0).toLocaleString(), icon: 'fa-server' },
+        { label: 'Avg Req/Hour', value: (traffic.avg_requests_per_hour || 0).toFixed(1), icon: 'fa-clock' },
+        { label: 'Max Req/Hour', value: (traffic.max_requests_per_hour || 0).toLocaleString(), icon: 'fa-chart-line' },
+        { label: 'Error Rate', value: (traffic.error_rate || 0).toFixed(1) + '%', icon: 'fa-exclamation-circle' },
+        { label: 'Avg Response Time', value: (traffic.avg_response_time_ms || 0).toFixed(0) + ' ms', icon: 'fa-tachometer-alt' },
+        { label: 'Unique IPs', value: traffic.unique_ips || 0, icon: 'fa-network-wired' }
+    ];
+    
+    let html = '';
+    stats.forEach(stat => {
+        html += `
+            <div class="col-md-2 text-center mb-3">
+                <i class="fas ${stat.icon} fa-2x text-primary mb-2"></i>
+                <h4>${stat.value}</h4>
+                <small class="text-muted">${stat.label}</small>
+            </div>
+        `;
+    });
+    
+    $('#trafficStats').html(html);
+}
+
+function displayRecommendations(recommendations) {
+    if (!recommendations || recommendations.length === 0) {
+        $('#recommendations').html('<p class="text-success"><i class="fas fa-check-circle"></i> No recommendations - excellent security posture!</p>');
+        return;
+    }
+    
+    let html = '';
+    recommendations.forEach(rec => {
+        html += `
+            <div class="recommendation ${rec.severity}">
+                <h6><i class="fas ${getSeverityIcon(rec.severity)}"></i> ${rec.message}</h6>
+                <p class="mb-1"><strong>Action:</strong> ${rec.action}</p>
+                <small class="text-muted">Category: ${rec.category} | Severity: ${rec.severity}</small>
+            </div>
+        `;
+    });
+    
+    $('#recommendations').html(html);
+}
+
+function displayTopIPs(topIps, totalRequests) {
+    let html = '';
+    topIps.forEach(([ip, count]) => {
+        const percentage = ((count / totalRequests) * 100).toFixed(1);
+        html += `
+            <tr>
+                <td><code>${ip}</code></td>
+                <td>${count.toLocaleString()}</td>
+                <td>${percentage}%</td>
+            </tr>
+        `;
+    });
+    
+    $('#topIpsBody').html(html || '<tr><td colspan="3" class="text-center">No data</td></tr>');
+}
+
+let statusCodeChart;
+function displayStatusCodes(statusCodes) {
+    const labels = Object.keys(statusCodes);
+    const data = Object.values(statusCodes);
+    
+    const ctx = document.getElementById('statusCodeChart');
+    if (statusCodeChart) statusCodeChart.destroy();
+    
+    statusCodeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: labels.map(code => {
+                    if (code >= 200 && code < 300) return '#28a745';
+                    if (code >= 300 && code < 400) return '#17a2b8';
+                    if (code >= 400 && code < 500) return '#ffc107';
+                    return '#dc3545';
+                })
+            }]
+        }
+    });
+}
+
+let timelineChart;
+function displayTimeline(timeline) {
+    if (!timeline || timeline.length === 0) {
+        $('#trafficTimelineChart').parent().html('<p class="text-center text-muted">No timeline data available</p>');
+        return;
+    }
+
+    // Format timestamps based on data density
+    const labels = timeline.map(t => {
+        const date = new Date(t.timestamp);
+        // If more than 48 hours of data, show date + hour, otherwise just hour
+        if (timeline.length > 48) {
+            return date.toLocaleDateString('tr-TR', { month: 'short', day: 'numeric', hour: '2-digit' });
+        } else {
+            return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        }
+    });
+
+    const requests = timeline.map(t => t.requests || 0);
+    const errors = timeline.map(t => t.errors || 0);
+    const successRequests = requests.map((req, idx) => req - errors[idx]);
+
+    const ctx = document.getElementById('trafficTimelineChart');
+    if (timelineChart) timelineChart.destroy();
+
+    timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Total Requests',
+                    data: requests,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Successful Requests',
+                    data: successRequests,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Errors',
+                    data: errors,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14, weight: 'bold' },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed.y.toLocaleString();
+
+                            // Add percentage for errors
+                            if (context.datasetIndex === 2 && requests[context.dataIndex] > 0) {
+                                const errorRate = (errors[context.dataIndex] / requests[context.dataIndex] * 100).toFixed(1);
+                                label += ` (${errorRate}%)`;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 20
+                    }
+                },
+                y: {
+                    display: true,
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Helper functions
+function getScoreClass(score) {
+    if (score >= 90) return 'bg-success';
+    if (score >= 75) return 'bg-info';
+    if (score >= 60) return 'bg-warning';
+    return 'bg-danger';
+}
+
+function getLevelBadge(level) {
+    const badges = {
+        'Excellent': '<span class="badge bg-success">Excellent</span>',
+        'Good': '<span class="badge bg-info">Good</span>',
+        'Fair': '<span class="badge bg-warning">Fair</span>',
+        'Poor': '<span class="badge bg-danger">Poor</span>',
+        'Critical': '<span class="badge bg-dark">Critical</span>'
+    };
+    return badges[level] || level;
+}
+
+function displaySSLStatus(data) {
+    const backend = data.backend_ssl || {};
+    const client = data.client_ssl || {};
+
+    let html = '<h6>Backend SSL (Routing Addresses)</h6>';
+    if (backend.all_ssl) {
+        html += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> All backend addresses use HTTPS</div>';
+    } else if (backend.total > 0) {
+        html += `<div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> ${backend.non_ssl_count} of ${backend.total} backend(s) use HTTP (insecure)
+            <ul class="mt-2 mb-0">`;
+        (backend.non_ssl_addresses || []).forEach(addr => {
+            html += `<li><code>${addr}</code></li>`;
+        });
+        html += '</ul></div>';
+    } else {
+        html += '<p class="text-muted">No backend addresses configured</p>';
+    }
+
+    html += '<h6 class="mt-3">Client SSL (Deployed Environments)</h6>';
+    if (client.all_ssl) {
+        html += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> All deployed environments use HTTPS</div>';
+    } else if (client.total > 0) {
+        html += `<div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> ${client.non_ssl_count} of ${client.total} environment(s) use HTTP (insecure)
+            <ul class="mt-2 mb-0">`;
+        (client.non_ssl_environments || []).forEach(env => {
+            html += `<li><strong>${env.environment}:</strong> <code>${env.url}</code></li>`;
+        });
+        html += '</ul></div>';
+    } else {
+        html += '<p class="text-muted">No deployed environments</p>';
+    }
+
+    $('#sslStatus').html(html);
+}
+
+function displayLoggingStatus(data) {
+    const logs = data.logs_enabled || {};
+
+    let html = '';
+    if (logs.trace_enabled) {
+        html += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Trace logging is <strong>ENABLED</strong></div>';
+    } else {
+        html += '<div class="alert alert-warning"><i class="fas fa-times-circle"></i> Trace logging is <strong>DISABLED</strong></div>';
+    }
+
+    html += '<div id="sensitiveFieldsStatus" class="mt-3"><p class="text-muted">Loading sensitive fields check...</p></div>';
+
+    $('#loggingStatus').html(html);
+}
+
+function loadSensitiveFieldsCheck() {
+    const apiId = '{{ api_id }}';
+    const esName = $('#esSelector').val() || 'PROD-ES';
+
+    $.get(`/api/apis/${apiId}/sensitive-fields?es_name=${esName}&sample_size=1000`, function(response) {
+        if (response.success) {
+            const data = response.data;
+            let html = '<h6>Sensitive Keywords in Logs (Last 1000 records)</h6>';
+            html += '<p class="small text-muted">Checking fcrh (headers) and fcrb (body) for sensitive keywords: tc, kimlik, tel, sifre, etc.</p>';
+
+            if (data.has_sensitive_data) {
+                html += '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> <strong>WARNING:</strong> Sensitive keywords found in logs!</div>';
+                html += '<table class="table table-sm table-bordered">';
+                html += '<thead><tr><th>Keyword</th><th>Total</th><th>In Headers</th><th>In Body</th><th>%</th></tr></thead><tbody>';
+
+                for (const [keyword, info] of Object.entries(data.sensitive_keywords)) {
+                    if (info.exists) {
+                        html += `<tr class="table-danger">
+                            <td><code>${keyword}</code></td>
+                            <td><strong>${info.count}</strong></td>
+                            <td>${info.in_headers}</td>
+                            <td>${info.in_body}</td>
+                            <td>${info.percentage}%</td>
+                        </tr>`;
+                    }
+                }
+                html += '</tbody></table>';
+            } else {
+                html += '<div class="alert alert-success"><i class="fas fa-check-circle"></i> No sensitive keywords found in logs</div>';
+            }
+
+            $('#sensitiveFieldsStatus').html(html);
+        }
+    }).fail(function() {
+        $('#sensitiveFieldsStatus').html('<p class="text-danger">Failed to check sensitive keywords</p>');
+    });
+}
+
+function loadHourlyHeatmap() {
+    const apiId = '{{ api_id }}';
+    const esName = $('#esSelector').val() || 'PROD-ES';
+    const startDate = $('#startDate').val();
+    const endDate = $('#endDate').val();
+
+    $.get(`/api/apis/${apiId}/hourly-distribution?es_name=${esName}&start_date=${startDate}&end_date=${endDate}`, function(response) {
+        if (response.success) {
+            const data = response.data;
+            displayHourlyHeatmap(data.hourly_distribution, data.max_traffic);
+        }
+    }).fail(function() {
+        $('#hourlyHeatmap').html('<p class="text-danger">Failed to load hourly distribution</p>');
+    });
+}
+
+function displayHourlyHeatmap(hourlyData, maxTraffic) {
+    if (!hourlyData || hourlyData.length !== 24) {
+        $('#hourlyHeatmap').html('<p class="text-muted">No hourly data available</p>');
+        return;
+    }
+
+    let html = '<div class="row">';
+
+    for (let hour = 0; hour < 24; hour++) {
+        const count = hourlyData[hour];
+        let colorClass = 'bg-secondary'; // No traffic (gray)
+        let textClass = 'text-white';
+
+        if (count > 0 && maxTraffic > 0) {
+            const percentage = (count / maxTraffic) * 100;
+
+            if (percentage >= 70) {
+                colorClass = 'bg-danger'; // High traffic (red)
+                textClass = 'text-white';
+            } else if (percentage >= 30) {
+                colorClass = 'bg-success'; // Medium traffic (green)
+                textClass = 'text-white';
+            } else {
+                colorClass = 'bg-warning'; // Low traffic (yellow)
+                textClass = 'text-dark';
+            }
+        }
+
+        html += `
+            <div class="col-1 p-1">
+                <div class="text-center ${colorClass} ${textClass} p-2 rounded" style="min-height: 60px;">
+                    <div style="font-size: 12px; font-weight: bold;">${hour.toString().padStart(2, '0')}:00</div>
+                    <div style="font-size: 10px;">${count.toLocaleString()}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+    html += `
+        <div class="mt-3">
+            <small>
+                <span class="badge bg-danger">Red</span> High traffic (≥70% of peak) &nbsp;
+                <span class="badge bg-success">Green</span> Medium traffic (30-70%) &nbsp;
+                <span class="badge bg-warning text-dark">Yellow</span> Low traffic (<30%) &nbsp;
+                <span class="badge bg-secondary">Gray</span> No traffic
+            </small>
+        </div>
+    `;
+
+    $('#hourlyHeatmap').html(html);
+}
+</script>
+{% endblock %}
+
